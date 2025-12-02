@@ -9,7 +9,22 @@ echo "Starting Redis Cluster with username/password authentication..."
 docker-compose up -d
 
 echo "Waiting for cluster to initialize..."
-sleep 8
+TIMEOUT=60
+ELAPSED=0
+while [ $ELAPSED -lt $TIMEOUT ]; do
+    STATUS=$(docker-compose exec -T -e REDISCLI_AUTH="$REDISCLI_AUTH_PASSWORD" redis-node-1 redis-cli cluster info 2>/dev/null | grep cluster_state)
+    if [[ $STATUS == *"ok"* ]]; then
+        echo "✅ Cluster is ready!"
+        break
+    fi
+    echo "⏳ Waiting... ($ELAPSED/$TIMEOUT seconds)"
+    sleep 2
+    ELAPSED=$((ELAPSED + 2))
+done
+
+if [ $ELAPSED -ge $TIMEOUT ]; then
+    echo "⚠️  Cluster initialization timeout after $TIMEOUT seconds"
+fi
 
 echo "Redis Cluster is starting up!"
 echo ""
