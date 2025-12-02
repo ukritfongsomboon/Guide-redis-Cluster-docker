@@ -1,6 +1,6 @@
 # Redis Cluster Setup
 
-Redis Cluster ที่มีการยืนยัตว์ด้วย username และ password พร้อม HAProxy load balancer
+Redis Cluster ที่มีการยืนยัตว์ด้วย username และ password พร้อม Nginx load balancer
 
 ## ข้อกำหนดเบื้องต้น
 
@@ -29,7 +29,7 @@ REDISCLI_AUTH_PASSWORD=admin
 
 Script นี้จะทำการ:
 - สร้างและเริ่มต้น 6 Redis nodes (3 masters, 3 slaves)
-- ตั้งค่า HAProxy load balancer
+- ตั้งค่า Nginx load balancer
 - Initialize cluster
 - เริ่มต้น Redis Insight
 
@@ -57,14 +57,14 @@ Script นี้จะทำการ:
 |------|---------|
 | `.env` | ไฟล์การตั้งค่า username และ password (⚠️ อย่า commit) |
 | `redis.sh` | Startup script สำหรับแต่ละ Redis node - สร้าง config และ ACL จาก env variables |
-| `docker-compose.yaml` | Docker Compose configuration - กำหนด 6 Redis nodes, HAProxy, และ Redis Insight |
+| `docker-compose.yaml` | Docker Compose configuration - กำหนด 6 Redis nodes, Nginx, และ Redis Insight |
 | `start-cluster.sh` | Script สำหรับเริ่มต้น cluster และ initialize |
 | `stop-cluster.sh` | Script สำหรับหยุด cluster และลบ volumes |
 | `test-cluster.sh` | Script สำหรับทดสอบ cluster functionality |
+| `nginx/` | ไดเรกทอรี่การตั้งค่า Nginx load balancer |
 | `server.crt` | SSL Certificate (ไม่ใช้ในโครงสร้างปัจจุบัน) |
 | `server.key` | SSL Private Key (ไม่ใช้ในโครงสร้างปัจจุบัน) |
 | `dhparams.pem` | DH Parameters (ไม่ใช้ในโครงสร้างปัจจุบัน) |
-| `haproxy/` | ไดเรกทอรี่การตั้งค่า HAProxy |
 | `.gitignore` | Git ignore rules (ป้องกัน .env ไม่ให้ถูก commit) |
 | `.env.example` | ตัวอย่าง environment variables |
 
@@ -80,18 +80,18 @@ Script นี้จะทำการ:
 2. เลือก **Connect to a Redis Stack database** หรือ **Connect to a Redis database**
 3. กรอกข้อมูลการเชื่อมต่อ:
 
-**ตัวเลือกที่ 1: Direct Connection to Node**
+**ตัวเลือกที่ 1: Connection via Nginx Proxy (แนะนำ)**
 ```
-Host: redis-node-1
+Host: localhost
 Port: 6379
 Username: admin
 Password: admin
 ```
 
-**ตัวเลือกที่ 2: Connection via HAProxy (แนะนำ)**
+**ตัวเลือกที่ 2: Direct Connection to Individual Node**
 ```
-Host: redis-proxy
-Port: 6379
+Host: localhost
+Port: 7001  (หรือ 7002, 7003, ... สำหรับ nodes อื่น)
 Username: admin
 Password: admin
 ```
@@ -110,7 +110,8 @@ Password: admin
 └──────────────────┬──────────────────────────┘
                    │
 ┌──────────────────▼──────────────────────────┐
-│  HAProxy Load Balancer (Port 6379, 7001-7006)
+│  Nginx Load Balancer (Port 6379, 7001-7006)│
+│           + Health Check (8080)             │
 ├──────────────────┬──────────────────────────┤
 │     Master 1     │   Master 2      Master 3 │
 │     (6379)       │   (6379)        (6379)   │
@@ -180,25 +181,25 @@ redis-cli -h redis-proxy -p 6379 MONITOR
 
 ⚠️ ต้องเปิด ports ที่จำเป็น
 - ตรวจสอบให้แน่ใจว่า ports เหล่านี้พร้อม:
-  - 6379 (Redis)
-  - 7001-7006 (HAProxy)
+  - 6379 (Nginx Proxy - Main)
+  - 7001-7006 (Individual Nodes)
   - 8001 (Redis Insight)
-  - 8404 (HAProxy Stats)
+  - 8080 (Nginx Health/Stats)
 
 ## Services และ Ports
 
 | Service | Port | วัตถุประสงค์ |
 |---------|------|-----------|
-| Redis Nodes 1-6 | 6379 | Redis Cluster Nodes |
-| HAProxy | 7001-7006 | Load Balancer (forward จาก 9001-9006) |
-| HAProxy Stats | 8404 | HAProxy Statistics Dashboard |
+| Nginx Proxy (Load Balancer) | 6379 | Redis Cluster (Main Connection) |
+| Redis Nodes 1-6 (Individual) | 7001-7006 | Direct Node Access |
+| Nginx Health Check | 8080 | Nginx Health/Stats |
 | Redis Insight | 8001 | Web-based Redis Management UI |
 
 ## ลิงก์ที่มีประโยชน์
 
 - Redis Cluster Documentation: https://redis.io/docs/management/clustering/
 - Redis CLI: https://redis.io/docs/connect/cli/
-- HAProxy: http://www.haproxy.org/
+- Nginx: https://nginx.org/
 - Redis Insight: https://redis.com/redis-enterprise/redis-insight/
 
 ## ใบอนุญาต
