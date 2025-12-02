@@ -57,13 +57,13 @@ services:
       - redis-node-6
       - redis-proxy
   redis-proxy:
-    image: haproxytech/haproxy-alpine:2.4
+    image: nginx:alpine
     volumes:
-      - ./haproxy:/usr/local/etc/haproxy:ro
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     ports:
-      - 8404:8404
-      - 7001-7006:9001-9006
-      - 7101-7106:9101-9106
+      - 63790:6379
+      - 7001-7006:7001-7006
+      - 8080:8080
     depends_on:
       - redis-node-1
       - redis-node-2
